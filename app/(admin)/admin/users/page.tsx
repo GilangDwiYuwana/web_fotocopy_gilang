@@ -1,4 +1,3 @@
-// ...existing code...
 'use client'
 
 import React, { useMemo, useState } from 'react'
@@ -27,6 +26,7 @@ const INITIAL_USERS: User[] = [
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<User[]>(INITIAL_USERS)
   const [q, setQ] = useState('')
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase()
@@ -40,115 +40,192 @@ export default function AdminUsersPage() {
 
   function toggleActive(id: string) {
     setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, active: !u.active } : u)))
-    // persist to API if needed
   }
 
-  function handleEdit(user: User) {
-    // simple placeholder - replace with modal or navigation
-    // eslint-disable-next-line no-alert
-    alert(`Edit pengguna: ${user.name}`)
+  function deleteUser(id: string) {
+    setUsers((prev) => prev.filter((u) => u.id !== id))
+    setDeleteConfirm(null)
   }
+
+  const stats = useMemo(() => {
+    return {
+      total: users.length,
+      active: users.filter(u => u.active).length,
+      inactive: users.filter(u => !u.active).length,
+    }
+  }, [users])
 
   return (
-    <div className="relative flex h-auto min-h-screen w-full flex-col bg-[#f8f9fb] overflow-x-hidden" style={{ fontFamily: 'Inter, "Noto Sans", sans-serif' }}>
-      <div className="layout-container flex h-full grow flex-col">
-        <header className="flex items-center justify-between whitespace-nowrap border-b border-solid border-b-[#e8ebf3] px-10 py-3">
-          <div className="flex items-center gap-4 text-[#0e121b]">
-            <div className="w-10 h-10 flex items-center justify-center rounded bg-white">
-              <svg viewBox="0 0 48 48" className="w-6 h-6" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M44 4H30.6666V17.3334H17.3334V30.6666H4V44H44V4Z" fill="currentColor"></path></svg>
-            </div>
-            <h2 className="text-[#0e121b] text-lg font-bold leading-tight tracking-[-0.015em]">CetakDigital</h2>
-          </div>
+    <div className="min-h-screen bg-gradient-to-br from-[#f8f9fb] via-white to-[#f0f2f8] py-8">
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-4xl font-black text-[#0e121b] mb-2">Manajemen Pengguna</h1>
+        <p className="text-lg text-[#4f6596]">Kelola semua pengguna terdaftar di platform CetakDigital</p>
+      </div>
 
-          <div className="flex flex-1 justify-end gap-8">
-            <button className="flex max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 bg-[#e8ebf3] text-[#0e121b] gap-2 text-sm font-bold leading-normal tracking-[0.015em] min-w-0 px-2.5">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" fill="currentColor" viewBox="0 0 256 256"><path d="M221.8,175.94C216.25,166.38,208,139.33,208,104a80,80,0,1,0-160,0c0,35.34-8.26,62.38-13.81,71.94A16,16,0,0,0,48,200H88.81a40,40,0,0,0,78.38,0H208a16,16,0,0,0,13.8-24.06ZM128,216a24,24,0,0,1-22.62-16h45.24A24,24,0,0,1,128,216ZM48,184c7.7-13.24,16-43.92,16-80a64,64,0,1,1,128,0c0,36.05,8.28,66.73,16,80Z"></path></svg>
-            </button>
-
-            <div className="bg-center bg-no-repeat aspect-square bg-cover rounded-full w-10 h-10" style={{ backgroundImage: 'url(https://lh3.googleusercontent.com/aida-public/AB6AXuAvBZpwZ9_l7IkSoUyTb8Lv_7CtKTuKWiB75ERy6i1bi7zG8N5ui-DuqbRJFRgQ7QKzQrPLC9Bj9t0VTDZMRdmtAWza3h0r1IFY4l_ofj4qyuBr9G8QYrF7Zuor2M6V51VzkZ4l5n5fExtchOugFYCqlX1FScXP8Asej7pV4TGmA2qzdrHstv_e3AwHG63N0NEtmA7NmFL28Ejp6X_zmf_VnUpVV6qi4mwj3SU9i6EA0lqW8eRpsBJ3Ix55SI36d_Cvt7Br4JSRvtzJ)' }} />
-          </div>
-        </header>
-
-        <div className="px-40 flex flex-1 justify-center py-5">
-          <div className="layout-content-container flex flex-col max-w-[960px] flex-1">
-            <div className="flex flex-wrap justify-between gap-3 p-4">
-              <div className="flex min-w-72 flex-col gap-3">
-                <p className="text-[#0e121b] tracking-light text-[32px] font-bold leading-tight">Manajemen Pengguna</p>
-                <p className="text-[#4f6596] text-sm font-normal leading-normal">Kelola semua pengguna terdaftar di platform CetakDigital.</p>
+      {/* Quick Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        {[
+          { label: 'Total Pengguna', value: stats.total, icon: '👥', color: 'from-[#123891] to-[#4f6596]' },
+          { label: 'Pengguna Aktif', value: stats.active, icon: '✓', color: 'from-[#10b981] to-[#059669]' },
+          { label: 'Pengguna Nonaktif', value: stats.inactive, icon: '✕', color: 'from-[#ef4444] to-[#dc2626]' },
+        ].map((stat, idx) => (
+          <div key={idx} className="bg-white rounded-xl shadow-sm border border-[#e8ebf3] p-6 hover:shadow-lg transition-all">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-[#4f6596] font-medium mb-1">{stat.label}</p>
+                <p className="text-3xl font-bold text-[#0e121b]">{stat.value}</p>
+              </div>
+              <div className={`w-14 h-14 rounded-lg bg-gradient-to-br ${stat.color} flex items-center justify-center text-2xl`}>
+                {stat.icon}
               </div>
             </div>
+          </div>
+        ))}
+      </div>
 
-            <div className="px-4 py-3">
-              <label className="flex flex-col min-w-40 h-12 w-full">
-                <div className="flex w-full flex-1 items-stretch rounded-lg h-full">
-                  <div className="text-[#4f6596] flex bg-[#e8ebf3] items-center justify-center pl-4 rounded-l-lg">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" fill="currentColor" viewBox="0 0 256 256"><path d="M229.66,218.34l-50.07-50.06a88.11,88.11,0,1,0-11.31,11.31l50.06,50.07a8,8,0,0,0,11.32-11.32ZM40,112a72,72,0,1,1,72,72A72.08,72.08,0,0,1,40,112Z"></path></svg>
-                  </div>
-                  <input
-                    placeholder="Cari pengguna..."
-                    className="form-input flex w-full min-w-0 flex-1 rounded-lg text-[#0e121b] border-none bg-[#e8ebf3] h-full placeholder:text-[#4f6596] px-4 text-base font-normal"
-                    value={q}
-                    onChange={(e) => setQ(e.target.value)}
-                  />
-                </div>
-              </label>
+      {/* Search Bar */}
+      <div className="bg-white rounded-2xl shadow-sm border border-[#e8ebf3] p-6 mb-8">
+        <div className="relative">
+          <svg className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#4f6596]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <input
+            placeholder="Cari berdasarkan nama atau email..."
+            className="w-full pl-12 pr-4 py-3 rounded-lg border border-[#e8ebf3] focus:outline-none focus:ring-2 focus:ring-[#123891] focus:border-transparent bg-white text-[#0e121b] placeholder:text-[#4f6596]"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+          />
+        </div>
+      </div>
+
+      {/* Users Table */}
+      <div className="bg-white rounded-2xl shadow-sm border border-[#e8ebf3] overflow-hidden hover:shadow-lg transition-all">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="bg-gradient-to-r from-[#f8f9fb] to-[#f0f2f8] border-b border-[#e8ebf3]">
+                <th className="px-6 py-4 text-left text-sm font-bold text-[#0e121b]">Nama</th>
+                <th className="px-6 py-4 text-left text-sm font-bold text-[#0e121b]">Email</th>
+                <th className="px-6 py-4 text-left text-sm font-bold text-[#0e121b]">Tanggal Bergabung</th>
+                <th className="px-6 py-4 text-left text-sm font-bold text-[#0e121b]">Status</th>
+                <th className="px-6 py-4 text-center text-sm font-bold text-[#0e121b]">Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.length > 0 ? (
+                filtered.map((u) => (
+                  <tr key={u.id} className="border-b border-[#e8ebf3] hover:bg-[#f8f9fb] transition-colors group">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#123891] to-[#4f6596] flex items-center justify-center text-white font-bold text-sm">
+                          {u.name.charAt(0).toUpperCase()}
+                        </div>
+                        <span className="font-semibold text-[#0e121b]">{u.name}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-[#4f6596]">{u.email}</td>
+                    <td className="px-6 py-4 text-[#4f6596]">{u.joinedAt}</td>
+                    <td className="px-6 py-4">
+                      <button
+                        onClick={() => toggleActive(u.id)}
+                        className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg font-semibold text-sm transition-all ${
+                          u.active
+                            ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                            : 'bg-red-100 text-red-700 hover:bg-red-200'
+                        }`}
+                      >
+                        {u.active ? (
+                          <>
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                            Aktif
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                            </svg>
+                            Nonaktif
+                          </>
+                        )}
+                      </button>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          onClick={() => alert(`Edit pengguna: ${u.name}`)}
+                          className="px-4 py-2 rounded-lg bg-[#123891]/10 text-[#123891] hover:bg-[#123891]/20 font-medium text-sm transition-all"
+                        >
+                          ✎ Edit
+                        </button>
+                        <button
+                          onClick={() => setDeleteConfirm(u.id)}
+                          className="px-4 py-2 rounded-lg bg-red-100 text-red-700 hover:bg-red-200 font-medium text-sm transition-all"
+                        >
+                          🗑️ Hapus
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={5} className="px-6 py-12 text-center">
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="text-4xl">👤</div>
+                      <p className="text-lg font-semibold text-[#0e121b]">Tidak ada pengguna</p>
+                      <p className="text-sm text-[#4f6596]">Coba ubah pencarian Anda</p>
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Table Footer */}
+        <div className="bg-[#f8f9fb] border-t border-[#e8ebf3] px-6 py-4">
+          <p className="text-sm text-[#4f6596] font-medium">
+            Menampilkan <span className="text-[#0e121b] font-bold">{filtered.length}</span> dari <span className="text-[#0e121b] font-bold">{users.length}</span> pengguna
+          </p>
+        </div>
+      </div>
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl border border-[#e8ebf3] p-8 max-w-md w-full animate-in fade-in zoom-in-95">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4v2m0 4v2M6.343 17.657l1.414-1.414m2.828 2.828l1.414 1.414m2.828-2.828l1.414 1.414M9.171 9.171L7.757 7.757m2.828-2.828l1.414-1.414m2.828 2.828l1.414-1.414m2.828-2.828l1.414 1.414" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-bold text-[#0e121b] mb-2">Hapus Pengguna?</h3>
+              <p className="text-[#4f6596]">
+                Anda yakin ingin menghapus pengguna ini? Tindakan ini tidak dapat dibatalkan.
+              </p>
             </div>
 
-            <div className="px-4 py-3 @container">
-              <div className="flex overflow-hidden rounded-lg border border-[#d0d7e6] bg-[#f8f9fb]">
-                <table className="w-full">
-                  <thead>
-                    <tr className="bg-[#f8f9fb]">
-                      <th className="table-f01358f3-8e83-42ed-b971-0c7bca396fe6-column-120 px-4 py-3 text-left text-[#0e121b] w-[400px] text-sm font-medium">Nama</th>
-                      <th className="table-f01358f3-8e83-42ed-b971-0c7bca396fe6-column-240 px-4 py-3 text-left text-[#0e121b] w-[400px] text-sm font-medium">Email</th>
-                      <th className="table-f01358f3-8e83-42ed-b971-0c7bca396fe6-column-360 px-4 py-3 text-left text-[#0e121b] w-[400px] text-sm font-medium">Tanggal Bergabung</th>
-                      <th className="table-f01358f3-8e83-42ed-b971-0c7bca396fe6-column-480 px-4 py-3 text-left text-[#0e121b] w-60 text-sm font-medium">Status</th>
-                      <th className="table-f01358f3-8e83-42ed-b971-0c7bca396fe6-column-600 px-4 py-3 text-left text-[#0e121b] w-60 text-[#4f6596] text-sm font-medium">Aksi</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {filtered.map((u) => (
-                      <tr key={u.id} className="border-t border-t-[#d0d7e6]">
-                        <td className="table-f01358f3-8e83-42ed-b971-0c7bca396fe6-column-120 h-[72px] px-4 py-2 text-[#0e121b] text-sm font-normal">{u.name}</td>
-                        <td className="table-f01358f3-8e83-42ed-b971-0c7bca396fe6-column-240 h-[72px] px-4 py-2 text-[#4f6596] text-sm font-normal">{u.email}</td>
-                        <td className="table-f01358f3-8e83-42ed-b971-0c7bca396fe6-column-360 h-[72px] px-4 py-2 text-[#4f6596] text-sm font-normal">{u.joinedAt}</td>
-                        <td className="table-f01358f3-8e83-42ed-b971-0c7bca396fe6-column-480 h-[72px] px-4 py-2 text-sm font-normal">
-                          <button
-                            onClick={() => toggleActive(u.id)}
-                            className="flex w-full h-8 items-center justify-center rounded-lg bg-[#e8ebf3] text-[#0e121b] text-sm font-medium"
-                            aria-pressed={u.active}
-                          >
-                            <span className="truncate">{u.active ? 'Aktif' : 'Nonaktif'}</span>
-                          </button>
-                        </td>
-                        <td className="table-f01358f3-8e83-42ed-b971-0c7bca396fe6-column-600 h-[72px] px-4 py-2 text-[#4f6596] text-sm font-bold">
-                          <button onClick={() => handleEdit(u)} className="text-[#4f6596]">Edit</button>
-                        </td>
-                      </tr>
-                    ))}
-
-                    {filtered.length === 0 && (
-                      <tr>
-                        <td colSpan={5} className="p-4 text-center text-sm text-gray-500">Tidak ada pengguna</td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
-              <style>{`
-                @container (max-width:120px){.table-f01358f3-8e83-42ed-b971-0c7bca396fe6-column-120{display:none}}
-                @container (max-width:240px){.table-f01358f3-8e83-42ed-b971-0c7bca396fe6-column-240{display:none}}
-                @container (max-width:360px){.table-f01358f3-8e83-42ed-b971-0c7bca396fe6-column-360{display:none}}
-                @container (max-width:480px){.table-f01358f3-8e83-42ed-b971-0c7bca396fe6-column-480{display:none}}
-                @container (max-width:600px){.table-f01358f3-8e83-42ed-b971-0c7bca396fe6-column-600{display:none}}
-              `}</style>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                className="px-4 py-2 rounded-lg border border-[#e8ebf3] text-[#4f6596] hover:border-[#123891] hover:text-[#123891] font-medium transition-all"
+              >
+                Batal
+              </button>
+              <button
+                onClick={() => deleteUser(deleteConfirm)}
+                className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 font-medium transition-all"
+              >
+                Hapus
+              </button>
             </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }
-// ...existing code...

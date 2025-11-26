@@ -1,4 +1,3 @@
-// ...existing code...
 'use client'
 
 import React, { useMemo, useState } from 'react'
@@ -32,10 +31,18 @@ const STATUS_OPTIONS: Order['status'][] = [
   'Dibatalkan',
 ]
 
+const STATUS_COLORS: Record<Order['status'], { bg: string; text: string; icon: string }> = {
+  'Menunggu Pembayaran': { bg: 'bg-yellow-100', text: 'text-yellow-700', icon: '⏳' },
+  'Dibayar': { bg: 'bg-blue-100', text: 'text-blue-700', icon: '✓' },
+  'Diproses': { bg: 'bg-purple-100', text: 'text-purple-700', icon: '⚙️' },
+  'Selesai': { bg: 'bg-green-100', text: 'text-green-700', icon: '✓✓' },
+  'Dibatalkan': { bg: 'bg-red-100', text: 'text-red-700', icon: '✕' },
+}
+
 export default function ManageOrdersPage() {
   const [orders, setOrders] = useState<Order[]>(INITIAL_ORDERS)
   const [q, setQ] = useState('')
-  const [statusFilter] = useState<string>('Semua Status') // placeholder for UI; extend if needed
+  const [statusFilter, setStatusFilter] = useState<string>('Semua Status')
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase()
@@ -54,123 +61,162 @@ export default function ManageOrdersPage() {
 
   function updateStatus(id: string, newStatus: Order['status']) {
     setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, status: newStatus } : o)))
-    // TODO: persist change to backend
   }
 
+  const stats = useMemo(() => {
+    return {
+      total: orders.length,
+      pending: orders.filter(o => o.status === 'Menunggu Pembayaran').length,
+      processing: orders.filter(o => o.status === 'Diproses').length,
+      completed: orders.filter(o => o.status === 'Selesai').length,
+    }
+  }, [orders])
+
   return (
-    <div className="relative flex h-auto min-h-screen w-full flex-col bg-[#f8f9fb] overflow-x-hidden" style={{ fontFamily: 'Inter, "Noto Sans", sans-serif' }}>
-      <div className="layout-container flex h-full grow flex-col">
-        <header className="flex items-center justify-between whitespace-nowrap border-b border-solid border-b-[#e8ebf3] px-10 py-3">
-          <div className="flex items-center gap-4 text-[#0e121b]">
-            <div className="w-10 h-10 flex items-center justify-center rounded bg-white">
-              <svg viewBox="0 0 48 48" className="w-6 h-6" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M44 4H30.6666V17.3334H17.3334V30.6666H4V44H44V4Z" fill="currentColor"></path></svg>
-            </div>
-            <h2 className="text-[#0e121b] text-lg font-bold leading-tight tracking-[-0.015em]">CetakDigital</h2>
-          </div>
+    <div className="min-h-screen bg-gradient-to-br from-[#f8f9fb] via-white to-[#f0f2f8] py-8">
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-4xl font-black text-[#0e121b] mb-2">Kelola Pesanan</h1>
+        <p className="text-lg text-[#4f6596]">Kelola semua pesanan yang masuk dari pelanggan</p>
+      </div>
 
-          <div className="flex flex-1 justify-end gap-8">
-            <button className="flex items-center justify-center rounded-lg h-10 bg-[#e8ebf3] text-[#0e121b] px-2.5">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 256 256"><path d="M221.8,175.94C216.25,166.38,208,139.33,208,104a80,80,0,1,0-160,0c0,35.34-8.26,62.38-13.81,71.94A16,16,0,0,0,48,200H88.81a40,40,0,0,0,78.38,0H208a16,16,0,0,0,13.8-24.06ZM128,216a24,24,0,0,1-22.62-16h45.24A24,24,0,0,1,128,216ZM48,184c7.7-13.24,16-43.92,16-80a64,64,0,1,1,128,0c0,36.05,8.28,66.73,16,80Z"></path></svg>
-            </button>
-
-            <div className="w-10 h-10 rounded-full bg-cover bg-center" style={{ backgroundImage: 'url(https://lh3.googleusercontent.com/aida-public/AB6AXuAZv9vry04tXf8QO9PtAdQ6kAgNni8WVm89sV1X-47kKNIl_1o0hk4yj4ZLavKTzIS_X7L135hGoe59WiKqJqEMVTVQaU-H8rId0Q2kXYyA4mhKXwxAOqGkfs1E8POnnms6j4gjXE1C4L4aL_XYQKEe6TG5aOC2nWrwqYtyK0wRfHpNHGVwzhC1wqLMg1b0pCBqrM5Mb4o27ik5qYxRJo76xAFGJiDnoK3zu3wpsPjlqfy4x2enfEBv1mbFhxe7zisow72jA-cKIxDP)' }} />
-          </div>
-        </header>
-
-        <div className="px-40 flex flex-1 justify-center py-5">
-          <div className="layout-content-container flex flex-col max-w-[960px] w-full">
-            <div className="flex flex-wrap justify-between gap-3 p-4">
-              <div className="flex min-w-72 flex-col gap-3">
-                <p className="text-[#0e121b] tracking-light text-[32px] font-bold leading-tight">Pesanan Masuk</p>
-                <p className="text-[#4f6596] text-sm">Kelola semua pesanan yang masuk dari pelanggan.</p>
+      {/* Quick Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        {[
+          { label: 'Total Pesanan', value: stats.total, icon: '📦', color: 'from-[#123891] to-[#4f6596]' },
+          { label: 'Menunggu Pembayaran', value: stats.pending, icon: '⏳', color: 'from-[#f59e0b] to-[#d97706]' },
+          { label: 'Sedang Diproses', value: stats.processing, icon: '⚙️', color: 'from-[#8b5cf6] to-[#7c3aed]' },
+          { label: 'Selesai', value: stats.completed, icon: '✓', color: 'from-[#10b981] to-[#059669]' },
+        ].map((stat, idx) => (
+          <div key={idx} className="bg-white rounded-xl shadow-sm border border-[#e8ebf3] p-6 hover:shadow-lg transition-all">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-[#4f6596] font-medium mb-1">{stat.label}</p>
+                <p className="text-3xl font-bold text-[#0e121b]">{stat.value}</p>
+              </div>
+              <div className={`w-14 h-14 rounded-lg bg-gradient-to-br ${stat.color} flex items-center justify-center text-2xl`}>
+                {stat.icon}
               </div>
             </div>
+          </div>
+        ))}
+      </div>
 
-            <div className="px-4 py-3">
-              <label className="flex flex-col min-w-40 h-12 w-full">
-                <div className="flex w-full flex-1 items-stretch rounded-lg h-full">
-                  <div className="text-[#4f6596] flex bg-[#e8ebf3] items-center justify-center pl-4 rounded-l-lg">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 256 256"><path d="M229.66,218.34l-50.07-50.06a88.11,88.11,0,1,0-11.31,11.31l50.06,50.07a8,8,0,0,0,11.32-11.32ZM40,112a72,72,0,1,1,72,72A72.08,72.08,0,0,1,40,112Z"></path></svg>
-                  </div>
-                  <input
-                    placeholder="Cari pesanan..."
-                    className="form-input flex w-full min-w-0 flex-1 rounded-lg text-[#0e121b] border-none bg-[#e8ebf3] h-full placeholder:text-[#4f6596] px-4 text-base"
-                    value={q}
-                    onChange={(e) => setQ(e.target.value)}
-                  />
-                </div>
-              </label>
-            </div>
+      {/* Search and Filters */}
+      <div className="bg-white rounded-2xl shadow-sm border border-[#e8ebf3] p-6 mb-8">
+        <div className="space-y-4">
+          {/* Search Bar */}
+          <div className="relative">
+            <svg className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#4f6596]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              placeholder="Cari berdasarkan ID, pelanggan, atau tanggal..."
+              className="w-full pl-12 pr-4 py-3 rounded-lg border border-[#e8ebf3] focus:outline-none focus:ring-2 focus:ring-[#123891] focus:border-transparent bg-white text-[#0e121b] placeholder:text-[#4f6596]"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
+          </div>
 
-            <div className="flex gap-3 p-3 flex-wrap pr-4">
-              <button className="flex h-8 shrink-0 items-center justify-center gap-x-2 rounded-lg bg-[#e8ebf3] pl-4 pr-2">
-                <p className="text-[#0e121b] text-sm font-medium">Semua Status</p>
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 256 256"><path d="M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80A8,8,0,0,1,53.66,90.34L128,164.69l74.34-74.35a8,8,0,0,1,11.32,11.32Z"></path></svg>
+          {/* Filter Buttons */}
+          <div className="flex flex-wrap gap-2">
+            {['Semua Status', 'Menunggu Pembayaran', 'Dibayar', 'Diproses', 'Selesai', 'Dibatalkan'].map((status) => (
+              <button
+                key={status}
+                onClick={() => setStatusFilter(status)}
+                className={`px-4 py-2 rounded-lg font-medium transition-all text-sm ${
+                  statusFilter === status
+                    ? 'bg-[#123891] text-white shadow-lg shadow-[#123891]/30'
+                    : 'bg-[#f8f9fb] text-[#4f6596] border border-[#e8ebf3] hover:border-[#123891] hover:text-[#123891]'
+                }`}
+              >
+                {status}
               </button>
-              <button className="flex h-8 shrink-0 items-center justify-center gap-x-2 rounded-lg bg-[#e8ebf3] pl-4 pr-2">
-                <p className="text-[#0e121b] text-sm font-medium">Tanggal</p>
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 256 256"><path d="M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80A8,8,0,0,1,53.66,90.34L128,164.69l74.34-74.35a8,8,0,0,1,11.32,11.32Z"></path></svg>
-              </button>
-              <button className="flex h-8 shrink-0 items-center justify-center gap-x-2 rounded-lg bg-[#e8ebf3] pl-4 pr-2">
-                <p className="text-[#0e121b] text-sm font-medium">Urutkan</p>
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 256 256"><path d="M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80A8,8,0,0,1,53.66,90.34L128,164.69l74.34-74.35a8,8,0,0,1,11.32,11.32Z"></path></svg>
-              </button>
-            </div>
+            ))}
+          </div>
+        </div>
+      </div>
 
-            <div className="px-4 py-3 @container">
-              <div className="flex overflow-hidden rounded-lg border border-[#d0d7e6] bg-[#f8f9fb] w-full">
-                <table className="w-full">
-                  <thead>
-                    <tr className="bg-[#f8f9fb]">
-                      <th className="table-440dca16-0659-42eb-a615-cb8e04e49cbc-column-120 px-4 py-3 text-left text-[#0e121b] text-sm font-medium">ID Pesanan</th>
-                      <th className="table-440dca16-0659-42eb-a615-cb8e04e49cbc-column-240 px-4 py-3 text-left text-[#0e121b] text-sm font-medium">Pelanggan</th>
-                      <th className="table-440dca16-0659-42eb-a615-cb8e04e49cbc-column-360 px-4 py-3 text-left text-[#0e121b] text-sm font-medium">Tanggal</th>
-                      <th className="table-440dca16-0659-42eb-a615-cb8e04e49cbc-column-480 px-4 py-3 text-left text-[#0e121b] text-sm font-medium">Total</th>
-                      <th className="table-440dca16-0659-42eb-a615-cb8e04e49cbc-column-600 px-4 py-3 text-left text-[#0e121b] text-sm font-medium">Status</th>
+      {/* Orders Table */}
+      <div className="bg-white rounded-2xl shadow-sm border border-[#e8ebf3] overflow-hidden hover:shadow-lg transition-all">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="bg-gradient-to-r from-[#f8f9fb] to-[#f0f2f8] border-b border-[#e8ebf3]">
+                <th className="px-6 py-4 text-left text-sm font-bold text-[#0e121b]">ID Pesanan</th>
+                <th className="px-6 py-4 text-left text-sm font-bold text-[#0e121b]">Pelanggan</th>
+                <th className="px-6 py-4 text-left text-sm font-bold text-[#0e121b]">Tanggal</th>
+                <th className="px-6 py-4 text-left text-sm font-bold text-[#0e121b]">Total</th>
+                <th className="px-6 py-4 text-left text-sm font-bold text-[#0e121b]">Status</th>
+                <th className="px-6 py-4 text-center text-sm font-bold text-[#0e121b]">Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.length > 0 ? (
+                filtered.map((o) => {
+                  const statusColor = STATUS_COLORS[o.status]
+                  return (
+                    <tr key={o.id} className="border-b border-[#e8ebf3] hover:bg-[#f8f9fb] transition-colors group">
+                      <td className="px-6 py-4">
+                        <span className="font-bold text-[#123891] bg-[#123891]/10 px-3 py-1 rounded-lg text-sm">{o.id}</span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="font-semibold text-[#0e121b]">{o.customer}</div>
+                      </td>
+                      <td className="px-6 py-4 text-[#4f6596]">{o.date}</td>
+                      <td className="px-6 py-4 font-bold text-[#0e121b]">
+                        Rp {o.total.toLocaleString('id-ID')}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex items-center gap-1 px-3 py-2 rounded-lg font-semibold text-sm ${statusColor.bg} ${statusColor.text}`}>
+                          {statusColor.icon} {o.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <select
+                          value={o.status}
+                          onChange={(e) => updateStatus(o.id, e.target.value as Order['status'])}
+                          className="px-3 py-2 rounded-lg border border-[#e8ebf3] bg-white text-[#0e121b] text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#123891] focus:border-transparent cursor-pointer hover:border-[#123891] transition-all"
+                        >
+                          {STATUS_OPTIONS.map((s) => (
+                            <option key={s} value={s}>{s}</option>
+                          ))}
+                        </select>
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {filtered.map((o) => (
-                      <tr key={o.id} className="border-t border-t-[#d0d7e6]">
-                        <td className="h-[72px] px-4 py-2 text-[#0e121b] text-sm font-normal">{o.id}</td>
-                        <td className="h-[72px] px-4 py-2 text-[#4f6596] text-sm">{o.customer}</td>
-                        <td className="h-[72px] px-4 py-2 text-[#4f6596] text-sm">{o.date}</td>
-                        <td className="h-[72px] px-4 py-2 text-[#4f6596] text-sm">Rp {o.total.toLocaleString('id-ID')}</td>
-                        <td className="h-[72px] px-4 py-2 text-sm">
-                          <select
-                            className="w-full rounded-lg bg-white border border-[#d0d7e6] px-3 py-1 text-sm"
-                            value={o.status}
-                            onChange={(e) => updateStatus(o.id, e.target.value as Order['status'])}
-                          >
-                            {STATUS_OPTIONS.map((s) => (
-                              <option key={s} value={s}>{s}</option>
-                            ))}
-                          </select>
-                        </td>
-                      </tr>
-                    ))}
+                  )
+                })
+              ) : (
+                <tr>
+                  <td colSpan={6} className="px-6 py-12 text-center">
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="text-4xl">📭</div>
+                      <p className="text-lg font-semibold text-[#0e121b]">Tidak ada pesanan</p>
+                      <p className="text-sm text-[#4f6596]">Coba ubah filter atau pencarian Anda</p>
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
 
-                    {filtered.length === 0 && (
-                      <tr>
-                        <td colSpan={5} className="p-4 text-center text-sm text-gray-500">Tidak ada pesanan</td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
-              <style>{`
-                @container (max-width:120px){.table-440dca16-0659-42eb-a615-cb8e04e49cbc-column-120{display:none}}
-                @container (max-width:240px){.table-440dca16-0659-42eb-a615-cb8e04e49cbc-column-240{display:none}}
-                @container (max-width:360px){.table-440dca16-0659-42eb-a615-cb8e04e49cbc-column-360{display:none}}
-                @container (max-width:480px){.table-440dca16-0659-42eb-a615-cb8e04e49cbc-column-480{display:none}}
-                @container (max-width:600px){.table-440dca16-0659-42eb-a615-cb8e04e49cbc-column-600{display:none}}
-              `}</style>
-            </div>
+        {/* Table Footer */}
+        <div className="bg-[#f8f9fb] border-t border-[#e8ebf3] px-6 py-4 flex items-center justify-between">
+          <p className="text-sm text-[#4f6596] font-medium">
+            Menampilkan <span className="text-[#0e121b] font-bold">{filtered.length}</span> dari <span className="text-[#0e121b] font-bold">{orders.length}</span> pesanan
+          </p>
+          <div className="flex items-center gap-2">
+            <button className="px-4 py-2 rounded-lg border border-[#e8ebf3] text-[#4f6596] hover:border-[#123891] hover:text-[#123891] transition-all font-medium text-sm">
+              ← Sebelumnya
+            </button>
+            <span className="px-3 py-2 text-[#0e121b] font-semibold">1 / 1</span>
+            <button className="px-4 py-2 rounded-lg border border-[#e8ebf3] text-[#4f6596] hover:border-[#123891] hover:text-[#123891] transition-all font-medium text-sm">
+              Selanjutnya →
+            </button>
           </div>
         </div>
       </div>
     </div>
   )
 }
-// ...existing code...
