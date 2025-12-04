@@ -1,7 +1,18 @@
+'use client';
 import Link from "next/link";
 import Navbar from "@/components/layouts/Navbar";
+import { useState } from "react";
 
 export default function LandingPage() {
+  const [hoveredService, setHoveredService] = useState<number | null>(null);
+
+  const scrollToSection = (id: string) => {
+    const element = document.getElementById(id);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   return (
     <>
       <Navbar />
@@ -28,7 +39,7 @@ export default function LandingPage() {
 
               {/* Heading */}
               <div className="space-y-4">
-                <h1 className="text-6xl lg:text-7xl font-black text-[#0e121b] leading-tight tracking-tight">
+                <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black text-[#0e121b] leading-tight tracking-tight">
                   Print Without
                   <br />
                   <span className="bg-gradient-to-r from-[#123891] to-[#4f6596] bg-clip-text text-transparent">The Wait</span>
@@ -36,7 +47,7 @@ export default function LandingPage() {
               </div>
 
               {/* Description */}
-              <p className="text-xl text-[#4f6596] max-w-lg leading-relaxed font-light">
+              <p className="text-lg sm:text-xl text-[#4f6596] max-w-lg leading-relaxed font-light">
                 Upload your documents, make a secure payment, and get your prints ready the same day. Simple. Fast. Reliable.
               </p>
 
@@ -63,7 +74,10 @@ export default function LandingPage() {
 
               {/* CTA Buttons */}
               <div className="flex flex-col sm:flex-row gap-4 pt-6">
-                <Link href="/pesanan/buat" className="group inline-flex items-center justify-center px-8 py-4 bg-[#123891] text-white rounded-xl font-bold shadow-lg shadow-[#123891]/30 hover:shadow-xl hover:shadow-[#123891]/40 hover:bg-[#0d2654] transition-all duration-300 text-lg overflow-hidden relative">
+                <Link 
+                  href="/pesanan/buat" 
+                  className="group inline-flex items-center justify-center px-8 py-4 bg-[#123891] text-white rounded-xl font-bold shadow-lg shadow-[#123891]/30 hover:shadow-xl hover:shadow-[#123891]/40 hover:bg-[#0d2654] transition-all duration-300 text-lg overflow-hidden relative"
+                >
                   <span className="relative z-10 flex items-center">
                     Get Started
                     <svg className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -73,7 +87,10 @@ export default function LandingPage() {
                   <div className="absolute inset-0 bg-gradient-to-r from-[#0d2654] to-[#123891] transform scale-x-0 group-hover:scale-x-100 transition-transform origin-left"></div>
                 </Link>
                 
-                <button className="inline-flex items-center justify-center px-8 py-4 border-2 border-[#123891] text-[#123891] rounded-xl font-bold hover:bg-[#f8f9fb] transition-all duration-300 text-lg">
+                <button 
+                  onClick={() => scrollToSection('services')}
+                  className="inline-flex items-center justify-center px-8 py-4 border-2 border-[#123891] text-[#123891] rounded-xl font-bold hover:bg-[#f8f9fb] transition-all duration-300 text-lg"
+                >
                   Learn More
                 </button>
               </div>
@@ -103,9 +120,9 @@ export default function LandingPage() {
                   {/* Content */}
                   <div className="flex-1 p-6 space-y-6">
                     {[
-                      { step: 1, label: "Upload", icon: "M12 4v16m8-8H4" },
-                      { step: 2, label: "Pay", icon: "M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4z" },
-                      { step: 3, label: "Pickup", icon: "M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" }
+                      { step: 1, label: "Upload", desc: "Upload your document" },
+                      { step: 2, label: "Pay", desc: "Secure payment" },
+                      { step: 3, label: "Pickup", desc: "Pick up your order" }
                     ].map((item) => (
                       <div key={item.step} className="flex items-center gap-4">
                         <div className="w-10 h-10 rounded-lg bg-[#123891]/10 flex items-center justify-center flex-shrink-0">
@@ -113,7 +130,7 @@ export default function LandingPage() {
                         </div>
                         <div className="flex-1">
                           <p className="font-semibold text-[#0e121b] text-sm">{item.label}</p>
-                          <p className="text-xs text-[#4f6596]">Complete in minutes</p>
+                          <p className="text-xs text-[#4f6596]">{item.desc}</p>
                         </div>
                         <div className="text-[#4f6596]">
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -144,7 +161,7 @@ export default function LandingPage() {
       </div>
 
       {/* Services Section */}
-      <div className="py-24 px-4 bg-white">
+      <div id="services" className="py-24 px-4 bg-white">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-[#0e121b] mb-4">What We Offer</h2>
@@ -184,8 +201,17 @@ export default function LandingPage() {
                 desc: "Need it faster? We offer rush printing services"
               }
             ].map((service, idx) => (
-              <div key={idx} className="group p-8 bg-gradient-to-br from-white to-[#f8f9fb] rounded-2xl border border-[#e8ebf3] hover:border-[#123891] hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-                <div className="text-4xl mb-4">{service.icon}</div>
+              <div 
+                key={idx} 
+                onMouseEnter={() => setHoveredService(idx)}
+                onMouseLeave={() => setHoveredService(null)}
+                className="group p-8 bg-gradient-to-br from-white to-[#f8f9fb] rounded-2xl border border-[#e8ebf3] hover:border-[#123891] hover:shadow-lg transition-all duration-300 hover:-translate-y-1 cursor-pointer"
+              >
+                <div className="text-5xl mb-4 transition-transform duration-300" style={{
+                  transform: hoveredService === idx ? 'scale(1.2) rotate(5deg)' : 'scale(1)'
+                }}>
+                  {service.icon}
+                </div>
                 <h3 className="text-xl font-bold text-[#0e121b] mb-3">{service.title}</h3>
                 <p className="text-[#4f6596]">{service.desc}</p>
               </div>
@@ -221,7 +247,7 @@ export default function LandingPage() {
                 items: ["24/7 customer service", "Expert consultation", "Quick problem resolution"]
               }
             ].map((section, idx) => (
-              <div key={idx} className="p-8 bg-white rounded-2xl border border-[#e8ebf3]">
+              <div key={idx} className="p-8 bg-white rounded-2xl border border-[#e8ebf3] hover:shadow-lg transition-all duration-300">
                 <h3 className="text-2xl font-bold text-[#123891] mb-6">{section.title}</h3>
                 <ul className="space-y-4">
                   {section.items.map((item, itemIdx) => (
@@ -251,9 +277,9 @@ export default function LandingPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {[
-              { number: "1000+", label: "Orders Completed", icon: "📋" },
-              { number: "98%", label: "Customer Satisfaction", icon: "⭐" },
-              { number: "24/7", label: "Online Service", icon: "🕐" }
+              { number: "1000+", label: "Orders Completed" },
+              { number: "98%", label: "Customer Satisfaction" },
+              { number: "24/7", label: "Online Service" }
             ].map((stat, idx) => (
               <div key={idx} className="group p-8 bg-white rounded-2xl border border-[#e8ebf3] hover:border-[#123891] hover:shadow-lg transition-all duration-300 text-center">
                 <p className="text-5xl font-black bg-gradient-to-r from-[#123891] to-[#4f6596] bg-clip-text text-transparent mb-3">{stat.number}</p>
@@ -267,9 +293,12 @@ export default function LandingPage() {
       {/* Final CTA */}
       <div className="py-24 px-4 bg-gradient-to-br from-[#123891] to-[#4f6596]">
         <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-5xl lg:text-6xl font-black text-white mb-6">Ready to Print?</h2>
-          <p className="text-xl text-white/90 mb-12 max-w-2xl mx-auto">Start your order now and experience the fastest printing service in town.</p>
-          <Link href="/pesanan/buat" className="inline-flex items-center justify-center px-10 py-5 bg-white text-[#123891] rounded-xl font-bold shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 text-lg">
+          <h2 className="text-4xl sm:text-5xl lg:text-6xl font-black text-white mb-6">Ready to Print?</h2>
+          <p className="text-lg sm:text-xl text-white/90 mb-12 max-w-2xl mx-auto">Start your order now and experience the fastest printing service in town.</p>
+          <Link 
+            href="/pesanan/buat" 
+            className="inline-flex items-center justify-center px-10 py-5 bg-white text-[#123891] rounded-xl font-bold shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 text-lg"
+          >
             Create Your Order Now
             <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
