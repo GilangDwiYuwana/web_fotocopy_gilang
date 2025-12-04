@@ -2,6 +2,8 @@
 import Link from "next/link";
 import Navbar from "@/components/layouts/Navbar";
 import { useState } from "react";
+import { useRouter } from 'next/navigation'; // Import router
+import { useAuth } from '@/src/hooks/useAuth'; // Import hook
 
 export default function LandingPage() {
   const [hoveredService, setHoveredService] = useState<number | null>(null);

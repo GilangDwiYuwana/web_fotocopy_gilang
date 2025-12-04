@@ -1,6 +1,8 @@
 'use client';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+// Import Server Action baru
+import { registerUser } from '@/src/actions/authActions'; 
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -13,6 +15,7 @@ export default function RegisterPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [termsChecked, setTermsChecked] = useState(false); // State untuk Terms & Condition
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,23 +36,37 @@ export default function RegisterPage() {
       setError('Password minimal 6 karakter');
       return;
     }
+    
+    // Cek Terms and Conditions
+    if (!termsChecked) {
+        setError('Anda harus menyetujui Syarat & Ketentuan');
+        return;
+    }
 
     setLoading(true);
     try {
-      await new Promise(res => setTimeout(res, 800));
-      setSuccess(true);
-      setTimeout(() => {
-        router.push('/login');
-      }, 1500);
+      // Panggil Server Action ke Database
+      const result = await registerUser(fullName, email, password);
+
+      if (result.success) {
+        setSuccess(true);
+        // Redirect setelah pendaftaran berhasil
+        setTimeout(() => {
+          router.push('/login');
+        }, 1500);
+      } else {
+        setError(result.message); // Tampilkan error dari Server Action (misal: Email sudah terdaftar)
+      }
     } catch (err) {
-      setError('Gagal mendaftar. Silakan coba lagi.');
+      setError('Gagal terhubung ke server.');
+    } finally {
       setLoading(false);
     }
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0e121b] via-[#123891] to-[#4f6596] flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Background Pattern */}
+      {/* Background Pattern (Biarkan sama) */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute top-0 -left-40 w-80 h-80 bg-[#123891] rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse"></div>
         <div className="absolute top-40 -right-40 w-80 h-80 bg-[#4f6596] rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse" style={{animationDelay: '2s'}}></div>
@@ -58,7 +75,7 @@ export default function RegisterPage() {
 
       {/* Content */}
       <div className="relative z-10 w-full max-w-md">
-        {/* Logo Section */}
+        {/* Logo Section (Biarkan sama) */}
         <div className="text-center mb-10">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 mb-4">
             <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
@@ -71,7 +88,7 @@ export default function RegisterPage() {
 
         {/* Register Card */}
         <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl shadow-2xl p-8 hover:border-white/40 transition-all duration-300">
-          {/* Card Header */}
+          {/* Card Header (Biarkan sama) */}
           <div className="mb-8">
             <h2 className="text-2xl font-black text-white mb-2">Buat Akun Baru</h2>
             <p className="text-white/70 text-sm">Daftar untuk memulai perjalanan Anda</p>
@@ -79,7 +96,7 @@ export default function RegisterPage() {
 
           {/* Success Alert */}
           {success && (
-            <div className="mb-6 p-4 rounded-lg bg-green-500/20 border border-green-500/50 flex items-center gap-3">
+            <div className="mb-6 p-4 rounded-lg bg-green-500/20 border border-green-500/50 flex items-center gap-3 animate-in fade-in zoom-in-95">
               <svg className="w-5 h-5 text-green-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
               </svg>
@@ -89,7 +106,7 @@ export default function RegisterPage() {
 
           {/* Error Alert */}
           {error && (
-            <div className="mb-6 p-4 rounded-lg bg-red-500/20 border border-red-500/50 flex items-center gap-3">
+            <div className="mb-6 p-4 rounded-lg bg-red-500/20 border border-red-500/50 flex items-center gap-3 animate-in fade-in zoom-in-95">
               <svg className="w-5 h-5 text-red-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
               </svg>
@@ -217,6 +234,8 @@ export default function RegisterPage() {
                 type="checkbox"
                 id="terms"
                 disabled={loading}
+                checked={termsChecked}
+                onChange={(e) => setTermsChecked(e.target.checked)} // Menggunakan state baru
                 className="w-4 h-4 rounded border-white/20 bg-white/10 text-white focus:ring-2 focus:ring-white/40 cursor-pointer accent-white mt-0.5"
                 required
               />

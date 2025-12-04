@@ -1,9 +1,16 @@
 'use client';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+// Import Server Action untuk otentikasi
+import { loginUser } from '@/src/actions/authActions'; 
+// Import hook yang baru dibuat
+import { useAuth } from '@/src/hooks/useAuth'; 
 
 export default function LoginPage() {
   const router = useRouter();
+  // Ambil fungsi login dari hook
+  const { login } = useAuth(); 
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -13,32 +20,42 @@ export default function LoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    
+    if (!email || !password) {
+      setError('Email dan password harus diisi');
+      return;
+    }
+    
     setLoading(true);
 
     try {
-      // Simulate login delay
-      await new Promise(res => setTimeout(res, 800));
+      // 1. Panggil Server Action ke Database
+      const result = await loginUser(email, password);
 
-      if (!email || !password) {
-        setError('Email dan password harus diisi');
-        setLoading(false);
-        return;
-      }
-
-      if (email.includes('admin')) {
-        router.push('/admin/dashboard');
+      if (result.success && result.user) {
+        // 2. Login Berhasil! Panggil hook untuk simpan sesi di localStorage
+        login(String(result.user.id), result.user.role); 
+        
+        // 3. Redirect berdasarkan ROLE
+        if (result.user.role === 'admin') {
+          router.push('/admin/dashboard');
+        } else {
+          router.push('/dashboard'); 
+        }
       } else {
-        router.push('/dashboard');
+        // 3. Login Gagal
+        setError(result.message || 'Kombinasi email dan password salah.');
       }
     } catch (err) {
-      setError('Gagal masuk. Silakan coba lagi.');
+      setError('Gagal terhubung ke server.');
+    } finally {
       setLoading(false);
     }
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0e121b] via-[#123891] to-[#4f6596] flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Background Pattern */}
+      {/* Background Pattern (Biarkan sama) */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute top-0 -left-40 w-80 h-80 bg-[#123891] rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse"></div>
         <div className="absolute top-40 -right-40 w-80 h-80 bg-[#4f6596] rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse" style={{animationDelay: '2s'}}></div>
@@ -68,7 +85,7 @@ export default function LoginPage() {
 
           {/* Error Alert */}
           {error && (
-            <div className="mb-6 p-4 rounded-lg bg-red-500/20 border border-red-500/50 flex items-center gap-3">
+            <div className="mb-6 p-4 rounded-lg bg-red-500/20 border border-red-500/50 flex items-center gap-3 animate-in fade-in zoom-in-95">
               <svg className="w-5 h-5 text-red-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
               </svg>
@@ -171,15 +188,17 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Demo Info
-          <div className="mt-8 p-4 rounded-lg bg-white/5 border border-white/10">
-            <p className="text-xs text-white/70 mb-2 font-semibold">💡 Demo Info:</p>
-            <ul className="text-xs text-white/60 space-y-1">
-              <li>• Admin: <span className="text-white/80 font-mono">admin@example.com</span></li>
-              <li>• User: <span className="text-white/80 font-mono">user@example.com</span></li>
-              <li>• Password: <span className="text-white/80 font-mono">apapun</span></li>
-            </ul>
-          </div> */}
+          {/* Register Link */}
+          <div className="text-center mt-8 text-sm text-white/70">
+            Belum punya akun?{' '}
+            <button
+              onClick={() => router.push('/register')}
+              disabled={loading}
+              className="text-white font-bold hover:text-white/80 transition-colors disabled:opacity-50"
+            >
+              Daftar Sekarang
+            </button>
+          </div>
         </div>
 
         {/* Footer */}

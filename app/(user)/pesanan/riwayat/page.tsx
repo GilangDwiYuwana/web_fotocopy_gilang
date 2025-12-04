@@ -1,38 +1,57 @@
-// ...existing code...
 'use client';
-import React, { useMemo, useState } from 'react';
+
+import React, { useMemo, useState, useEffect } from 'react';
 import Navbar from "@/components/layouts/Navbar";
+import { getUserOrders } from '@/src/actions/orderActions'; // Import server actions
+import { useRouter } from 'next/navigation';
 
 type Order = {
   id: string;
   date: string;
   items?: number;
   total: number;
-  status: 'Menunggu' | 'Diproses' | 'Selesai' | 'Dibatalkan';
+  status: 'Menunggu Pembayaran' | 'Dibayar' | 'Diproses' | 'Selesai' | 'Dibatalkan';
 };
 
-const SAMPLE_ORDERS: Order[] = [
-  { id: '#101', date: '2024-05-20', items: 3, total: 45000, status: 'Selesai' },
-  { id: '#102', date: '2024-06-02', items: 1, total: 15000, status: 'Diproses' },
-  { id: '#103', date: '2024-06-18', items: 5, total: 75000, status: 'Menunggu' },
-  { id: '#104', date: '2024-07-01', items: 2, total: 30000, status: 'Dibatalkan' },
-  { id: '#105', date: '2024-07-05', items: 4, total: 60000, status: 'Selesai' },
-];
-
 export default function Riwayat() {
-  const [orders, setOrders] = useState<Order[]>(SAMPLE_ORDERS);
+  const router = useRouter();
+  
+  // State Data
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // State Filter & UI
   const [q, setQ] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'Semua' | Order['status']>('Semua');
+  const [statusFilter, setStatusFilter] = useState<string>('Semua');
   const [page, setPage] = useState(1);
   const perPage = 6;
 
+  // 1. AMBIL DATA DARI DATABASE SAAT LOAD
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const dummyUserId = 1; // Sesuaikan dengan user login nanti
+        const data = await getUserOrders(dummyUserId);
+        // @ts-ignore: Memastikan tipe data cocok
+        setOrders(data);
+      } catch (error) {
+        console.error("Gagal memuat riwayat:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    loadData();
+  }, []);
+
+  // 2. LOGIKA STATISTIK
   const stats = useMemo(() => ({
     total: orders.length,
     selesai: orders.filter(o => o.status === 'Selesai').length,
     diproses: orders.filter(o => o.status === 'Diproses').length,
-    menunggu: orders.filter(o => o.status === 'Menunggu').length,
+    menunggu: orders.filter(o => o.status === 'Menunggu Pembayaran' || o.status === 'Menunggu').length,
   }), [orders]);
 
+  // 3. LOGIKA FILTERING (Client Side)
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
     return orders.filter(o => {
@@ -46,25 +65,32 @@ export default function Riwayat() {
     });
   }, [orders, q, statusFilter]);
 
+  // 4. LOGIKA PAGINATION
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
   const paged = filtered.slice((page - 1) * perPage, page * perPage);
 
+  // 5. FITUR ULANGI PESANAN (RE-ORDER)
+  // Untuk sekarang kita redirect ke pembayaran saja, atau bisa dikembangkan untuk Clone Order
   function repeatOrder(id: string) {
-    const orig = orders.find(o => o.id === id);
-    if (!orig) return;
-    const copy: Order = {
-      ...orig,
-      id: `#${Math.floor(Math.random() * 90000) + 20000}`,
-      date: new Date().toISOString().slice(0, 10),
-      status: 'Menunggu',
-    };
-    setOrders(prev => [copy, ...prev]);
-    setPage(1);
+    // Cari ordernya
+    const target = orders.find(o => o.id === id);
+    if(target && (target.status === 'Menunggu Pembayaran' || target.status === 'Menunggu')) {
+       // Jika belum bayar, arahkan ke bayar
+       router.push(`/pembayaran/${id}`);
+    } else {
+       // Jika sudah selesai, idealnya clone order. 
+       // Untuk simpelnya sekarang kita arahkan buat baru dulu.
+       alert("Untuk memesan ulang, silakan buat pesanan baru dengan spesifikasi yang sama.");
+       router.push('/pesanan/buat');
+    }
   }
 
-  function clearHistory() {
-    setOrders([]);
-    setPage(1);
+  function refreshData() {
+    window.location.reload();
+  }
+
+  if (isLoading) {
+    return <div className="min-h-screen flex items-center justify-center">Memuat riwayat...</div>;
   }
 
   return (
@@ -74,7 +100,7 @@ export default function Riwayat() {
         <header className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-slate-800">Riwayat Pesanan</h1>
-            <p className="text-sm text-slate-500 mt-1">Ringkasan pesanan Anda — cari, filter, dan ulangi pesanan dengan mudah.</p>
+            <p className="text-sm text-slate-500 mt-1">Daftar transaksi Anda yang tersimpan di database.</p>
           </div>
 
           <div className="flex items-center gap-3 w-full md:w-auto">
@@ -82,15 +108,12 @@ export default function Riwayat() {
               <input
                 value={q}
                 onChange={(e) => { setQ(e.target.value); setPage(1); }}
-                placeholder="Cari ID, tanggal, item, atau total..."
+                placeholder="Cari ID, tanggal, atau total..."
                 className="px-3 py-2 w-64 text-sm outline-none bg-transparent"
-                aria-label="Cari riwayat pesanan"
               />
               <button
                 onClick={() => { setQ(''); setStatusFilter('Semua'); setPage(1); }}
                 className="px-3 py-2 text-sm text-slate-600 hover:text-slate-800"
-                aria-label="Reset filter"
-                type="button"
               >
                 Reset
               </button>
@@ -98,6 +121,7 @@ export default function Riwayat() {
           </div>
         </header>
 
+        {/* Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
           <div className="bg-white p-4 rounded-xl shadow-sm border">
             <p className="text-xs text-slate-500">Total Pesanan</p>
@@ -116,102 +140,110 @@ export default function Riwayat() {
               <p className="text-xs text-slate-500">Menunggu</p>
               <p className="text-xl font-bold text-slate-800">{stats.menunggu}</p>
             </div>
-            <button
-              onClick={clearHistory}
-              className="text-sm px-3 py-1 bg-red-50 text-red-600 rounded-md border border-red-100"
-              aria-label="Bersihkan riwayat"
-              type="button"
-            >
-              Bersihkan
+            <button onClick={refreshData} className="text-sm px-3 py-1 bg-blue-50 text-blue-600 rounded-md border border-blue-100 hover:bg-blue-100">
+              Refresh
             </button>
           </div>
         </div>
 
+        {/* Filter Buttons */}
         <div className="flex items-center gap-3 flex-wrap">
-          {(['Semua', 'Selesai', 'Diproses', 'Menunggu', 'Dibatalkan'] as const).map(s => (
+          {['Semua', 'Menunggu Pembayaran', 'Diproses', 'Selesai', 'Dibatalkan'].map(s => (
             <button
               key={s}
-              onClick={() => { setStatusFilter(s as any); setPage(1); }}
-              className={`px-3 py-1 rounded-full text-sm font-medium ${
-                statusFilter === s ? 'bg-[#123891] text-white' : 'bg-white border border-slate-100 text-slate-600'
+              onClick={() => { setStatusFilter(s); setPage(1); }}
+              className={`px-3 py-1 rounded-full text-sm font-medium transition-all ${
+                statusFilter === s ? 'bg-[#123891] text-white' : 'bg-white border border-slate-100 text-slate-600 hover:bg-slate-50'
               }`}
-              type="button"
             >
               {s}
             </button>
           ))}
         </div>
 
+        {/* Table */}
         <div className="bg-white rounded-xl border overflow-hidden shadow-sm">
-          <table className="w-full text-left">
-            <thead className="bg-slate-50">
-              <tr>
-                <th className="p-4 text-sm text-slate-600">ID</th>
-                <th className="p-4 text-sm text-slate-600">Tanggal</th>
-                <th className="p-4 text-sm text-slate-600">Item</th>
-                <th className="p-4 text-sm text-slate-600">Total</th>
-                <th className="p-4 text-sm text-slate-600">Status</th>
-                <th className="p-4 text-sm text-slate-600 text-center">Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {paged.length === 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead className="bg-slate-50">
                 <tr>
-                  <td colSpan={6} className="p-8 text-center text-slate-500">
-                    Tidak ada riwayat pesanan. Coba ubah filter atau buat pesanan baru.
-                  </td>
+                  <th className="p-4 text-sm text-slate-600">ID Pesanan</th>
+                  <th className="p-4 text-sm text-slate-600">Tanggal</th>
+                  <th className="p-4 text-sm text-slate-600">Jml Item</th>
+                  <th className="p-4 text-sm text-slate-600">Total Harga</th>
+                  <th className="p-4 text-sm text-slate-600">Status</th>
+                  <th className="p-4 text-sm text-slate-600 text-center">Aksi</th>
                 </tr>
-              ) : (
-                paged.map((o, i) => (
-                  <tr key={o.id} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
-                    <td className="p-4 font-medium text-slate-700">{o.id}</td>
-                    <td className="p-4 text-slate-600">{new Date(o.date).toLocaleDateString()}</td>
-                    <td className="p-4 text-slate-600">{o.items ?? '-'}</td>
-                    <td className="p-4 font-semibold text-slate-800">Rp {o.total.toLocaleString('id-ID')}</td>
-                    <td className="p-4">
-                      <span className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold ${
-                        o.status === 'Selesai' ? 'bg-green-100 text-green-700' :
-                        o.status === 'Diproses' ? 'bg-amber-100 text-amber-700' :
-                        o.status === 'Menunggu' ? 'bg-slate-100 text-slate-700' :
-                        'bg-red-100 text-red-700'
-                      }`}>
-                        {o.status}
-                      </span>
-                    </td>
-                    <td className="p-4 text-center">
-                      <button
-                        onClick={() => repeatOrder(o.id)}
-                        className="text-sm px-3 py-1 rounded-md bg-white border border-slate-100 hover:bg-slate-50"
-                        aria-label={`Ulangi pesanan ${o.id}`}
-                        type="button"
-                      >
-                        Ulangi
-                      </button>
+              </thead>
+              <tbody>
+                {paged.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="p-12 text-center text-slate-500">
+                      <p className="text-lg">📭</p>
+                      Belum ada riwayat pesanan yang ditemukan.
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  paged.map((o, i) => (
+                    <tr key={o.id} className={`border-t border-slate-50 ${i % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}`}>
+                      <td className="p-4 font-bold text-[#123891]">{o.id}</td>
+                      <td className="p-4 text-slate-600">
+                        {new Date(o.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </td>
+                      <td className="p-4 text-slate-600">{o.items ?? 0} Pcs</td>
+                      <td className="p-4 font-semibold text-slate-800">Rp {o.total.toLocaleString('id-ID')}</td>
+                      <td className="p-4">
+                        <span className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold ${
+                          o.status === 'Selesai' ? 'bg-green-100 text-green-700' :
+                          o.status === 'Diproses' ? 'bg-purple-100 text-purple-700' :
+                          o.status === 'Menunggu Pembayaran' ? 'bg-orange-100 text-orange-700' :
+                          o.status === 'Dibatalkan' ? 'bg-red-100 text-red-700' :
+                          'bg-slate-100 text-slate-700'
+                        }`}>
+                          {o.status}
+                        </span>
+                      </td>
+                      <td className="p-4 text-center">
+                        {o.status === 'Menunggu Pembayaran' ? (
+                            <button
+                                onClick={() => repeatOrder(o.id)}
+                                className="text-sm px-4 py-1.5 rounded-lg bg-[#123891] text-white hover:bg-[#0d2654] transition-all shadow-sm"
+                            >
+                                Bayar
+                            </button>
+                        ) : (
+                            <button
+                                onClick={() => repeatOrder(o.id)}
+                                className="text-sm px-3 py-1 rounded-md bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-all"
+                            >
+                                Detail
+                            </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
 
+        {/* Pagination */}
         <div className="flex items-center justify-between mt-2">
-          <p className="text-sm text-slate-500">Menampilkan {filtered.length} hasil</p>
+          <p className="text-sm text-slate-500">Menampilkan {filtered.length} pesanan</p>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setPage(p => Math.max(1, p - 1))}
               disabled={page === 1}
-              className="px-3 py-1 rounded-md border border-slate-100 bg-white disabled:opacity-50"
-              type="button"
+              className="px-3 py-1 rounded-md border border-slate-100 bg-white disabled:opacity-50 hover:bg-slate-50"
             >
               ←
             </button>
-            <span className="text-sm px-3 py-1">{page} / {totalPages}</span>
+            <span className="text-sm px-3 py-1 text-slate-600">{page} / {totalPages}</span>
             <button
               onClick={() => setPage(p => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}
-              className="px-3 py-1 rounded-md border border-slate-100 bg-white disabled:opacity-50"
-              type="button"
+              className="px-3 py-1 rounded-md border border-slate-100 bg-white disabled:opacity-50 hover:bg-slate-50"
             >
               →
             </button>
@@ -221,4 +253,3 @@ export default function Riwayat() {
     </>
   );
 }
-// ...existing code...

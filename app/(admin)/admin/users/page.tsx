@@ -1,7 +1,10 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import EditUserModal from '@/components/admin/EditUserModal';
+// Import fungsi backend yang sudah kita buat sebelumnya
+// Pastikan path-nya benar. Jika error, coba ganti '@/actions/userActions'
+import { getUsers, updateUser, deleteUserAction } from '@/src/actions/userActions'; 
 
 type User = {
   id: string;
@@ -11,32 +14,37 @@ type User = {
   active: boolean;
 };
 
-const INITIAL_USERS: User[] = [
-  { id: 'u1', name: 'Clara Anderson', email: 'clara.anderson@email.com', joinedAt: '2023-01-15', active: true },
-  { id: 'u2', name: 'Ethan Carter', email: 'ethan.carter@email.com', joinedAt: '2023-02-20', active: true },
-  { id: 'u3', name: 'Olivia Bennett', email: 'olivia.bennett@email.com', joinedAt: '2023-03-10', active: false },
-  { id: 'u4', name: 'Liam Foster', email: 'liam.foster@email.com', joinedAt: '2023-04-05', active: true },
-  { id: 'u5', name: 'Sophia Hayes', email: 'sophia.hayes@email.com', joinedAt: '2023-05-12', active: true },
-  { id: 'u6', name: 'Noah Jenkins', email: 'noah.jenkins@email.com', joinedAt: '2023-06-18', active: false },
-  { id: 'u7', name: 'Ava Parker', email: 'ava.parker@email.com', joinedAt: '2023-07-22', active: true },
-  { id: 'u8', name: 'Jackson Reed', email: 'jackson.reed@email.com', joinedAt: '2023-08-30', active: true },
-  { id: 'u9', name: 'Isabella Scott', email: 'isabella.scott@email.com', joinedAt: '2023-09-14', active: false },
-  { id: 'u10', name: 'Lucas Turner', email: 'lucas.turner@email.com', joinedAt: '2023-10-01', active: true },
-];
-
 export default function AdminUsersPage() {
-  const [users, setUsers] = useState<User[]>(INITIAL_USERS);
+  // 1. KITA HAPUS INITIAL_USERS. Default-nya array kosong []
+  const [users, setUsers] = useState<User[]>([]); 
+  const [isLoading, setIsLoading] = useState(true);
+  
   const [q, setQ] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
-  // edit state and handlers (kept as requested)
   const [editUser, setEditUser] = useState<User | null>(null);
-  const [editForm, setEditForm] = useState<{ name: string; email: string; joinedAt: string; active: boolean }>({
+  const [editForm, setEditForm] = useState({
     name: '',
     email: '',
     joinedAt: '',
     active: true,
   });
+
+  // 2. AMBIL DATA DARI DATABASE (Gantikan localStorage)
+  // Kode ini otomatis jalan saat halaman dibuka
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const data = await getUsers(); // Memanggil server action
+        setUsers(data);
+      } catch (error) {
+        console.error("Gagal memuat data:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    loadData();
+  }, []);
 
   function openEdit(user: User) {
     setEditUser(user);
@@ -52,30 +60,52 @@ export default function AdminUsersPage() {
     setEditUser(null);
   }
 
-  function handleEditChange<K extends keyof typeof editForm>(key: K, value: typeof editForm[K]) {
+  function handleEditChange(key: string, value: any) {
     setEditForm(prev => ({ ...prev, [key]: value }));
   }
 
-  function saveEdit() {
+  // 3. SIMPAN EDIT KE DATABASE
+  async function saveEdit() {
     if (!editUser) return;
+    
+    // Ubah tampilan dulu biar cepat (Optimistic UI)
     setUsers(prev => prev.map(u => (u.id === editUser.id ? { ...u, ...editForm } : u)));
     closeEdit();
+
+    // Kirim perubahan ke database di belakang layar
+    await updateUser(editUser.id, editForm);
   }
 
+  // 4. UPDATE STATUS KE DATABASE
+  async function toggleActive(id: string) {
+    const targetUser = users.find(u => u.id === id);
+    if (!targetUser) return;
+    
+    const newStatus = !targetUser.active;
+
+    // Update tampilan
+    setUsers(prev => prev.map(u => (u.id === id ? { ...u, active: newStatus } : u)));
+    
+    // Update database
+    await updateUser(id, { ...targetUser, active: newStatus });
+  }
+
+  // 5. HAPUS DARI DATABASE
+  async function deleteUser(id: string) {
+    // Update tampilan
+    setUsers(prev => prev.filter(u => u.id !== id));
+    setDeleteConfirm(null);
+    
+    // Hapus permanen di database
+    await deleteUserAction(id);
+  }
+
+  // -- LOGIKA FILTER & SEARCH (Tidak berubah) --
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
     if (!term) return users;
     return users.filter(u => u.name.toLowerCase().includes(term) || u.email.toLowerCase().includes(term));
   }, [users, q]);
-
-  function toggleActive(id: string) {
-    setUsers(prev => prev.map(u => (u.id === id ? { ...u, active: !u.active } : u)));
-  }
-
-  function deleteUser(id: string) {
-    setUsers(prev => prev.filter(u => u.id !== id));
-    setDeleteConfirm(null);
-  }
 
   const stats = useMemo(() => {
     return {
@@ -84,6 +114,16 @@ export default function AdminUsersPage() {
       inactive: users.filter(u => !u.active).length,
     };
   }, [users]);
+
+  // Tampilan Loading saat pertama kali buka
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#f8f9fb]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#123891]"></div>
+        <p className="mt-4 text-[#4f6596]">Mengambil data dari database...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#f8f9fb] via-white to-[#f0f2f8] py-8">
@@ -106,7 +146,7 @@ export default function AdminUsersPage() {
                 <p className="text-sm text-[#4f6596] font-medium mb-1">{stat.label}</p>
                 <p className="text-3xl font-bold text-[#0e121b]">{stat.value}</p>
               </div>
-              <div className={`w-14 h-14 rounded-lg bg-gradient-to-br ${stat.color} flex items-center justify-center text-2xl`}>
+              <div className={`w-14 h-14 rounded-lg bg-gradient-to-br ${stat.color} flex items-center justify-center text-2xl text-white`}>
                 {stat.icon}
               </div>
             </div>
@@ -115,7 +155,7 @@ export default function AdminUsersPage() {
       </div>
 
       {/* Search Bar */}
-      <div className="bg-white rounded-2xl shadow-sm border border-[#e8ebf3] p-6 mb-8 px-6">
+      <div className="bg-white rounded-2xl shadow-sm border border-[#e8ebf3] p-6 mb-8 px-6 mx-6">
         <div className="relative max-w-3xl mx-auto">
           <svg className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#4f6596]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -164,21 +204,7 @@ export default function AdminUsersPage() {
                             u.active ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-red-100 text-red-700 hover:bg-red-200'
                           }`}
                         >
-                          {u.active ? (
-                            <>
-                              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                              </svg>
-                              Aktif
-                            </>
-                          ) : (
-                            <>
-                              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                              </svg>
-                              Nonaktif
-                            </>
-                          )}
+                          {u.active ? 'Aktif' : 'Nonaktif'}
                         </button>
                       </td>
                       <td className="px-6 py-4">
@@ -205,7 +231,7 @@ export default function AdminUsersPage() {
                       <div className="flex flex-col items-center gap-2">
                         <div className="text-4xl">👤</div>
                         <p className="text-lg font-semibold text-[#0e121b]">Tidak ada pengguna</p>
-                        <p className="text-sm text-[#4f6596]">Coba ubah pencarian Anda</p>
+                        <p className="text-sm text-[#4f6596]">Pastikan database sudah diisi atau ubah pencarian Anda</p>
                       </div>
                     </td>
                   </tr>
@@ -213,12 +239,12 @@ export default function AdminUsersPage() {
               </tbody>
             </table>
           </div>
-
-          {/* Table Footer */}
+          
+          {/* Footer stats */}
           <div className="bg-[#f8f9fb] border-t border-[#e8ebf3] px-6 py-4">
-            <p className="text-sm text-[#4f6596] font-medium">
-              Menampilkan <span className="text-[#0e121b] font-bold">{filtered.length}</span> dari <span className="text-[#0e121b] font-bold">{users.length}</span> pengguna
-            </p>
+             <p className="text-sm text-[#4f6596] font-medium">
+               Menampilkan <span className="text-[#0e121b] font-bold">{filtered.length}</span> dari <span className="text-[#0e121b] font-bold">{users.length}</span> pengguna
+             </p>
           </div>
         </div>
       </div>
@@ -227,26 +253,18 @@ export default function AdminUsersPage() {
       {deleteConfirm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-2xl border border-[#e8ebf3] p-8 max-w-md w-full animate-in fade-in zoom-in-95">
-            <div className="text-center mb-6">
-              <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4v2m0 4v2M6.343 17.657l1.414-1.414m2.828 2.828l1.414 1.414m2.828-2.828l1.414 1.414M9.171 9.171L7.757 7.757m2.828-2.828l1.414-1.414m2.828 2.828l1.414-1.414m2.828-2.828l1.414 1.414" />
-                </svg>
-              </div>
-              <h3 className="text-xl font-bold text-[#0e121b] mb-2">Hapus Pengguna?</h3>
-              <p className="text-[#4f6596]">Anda yakin ingin menghapus pengguna ini? Tindakan ini tidak dapat dibatalkan.</p>
-            </div>
-
+            <h3 className="text-xl font-bold text-[#0e121b] mb-2">Hapus Pengguna?</h3>
+            <p className="text-[#4f6596] mb-6">Anda yakin ingin menghapus pengguna ini? Tindakan ini menghapus data **permanen dari database**.</p>
             <div className="flex gap-3 justify-end">
               <button
                 onClick={() => setDeleteConfirm(null)}
-                className="px-4 py-2 rounded-lg border border-[#e8ebf3] text-[#4f6596] hover:border-[#123891] hover:text-[#123891] font-medium transition-all"
+                className="px-4 py-2 rounded-lg border border-[#e8ebf3] text-[#4f6596] hover:border-[#123891] font-medium"
               >
                 Batal
               </button>
               <button
                 onClick={() => deleteUser(deleteConfirm)}
-                className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 font-medium transition-all"
+                className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 font-medium"
               >
                 Hapus
               </button>
@@ -255,7 +273,7 @@ export default function AdminUsersPage() {
         </div>
       )}
 
-      {/* Edit modal component (kept functions) */}
+      {/* Edit modal */}
       <EditUserModal
         open={!!editUser}
         form={editForm}
